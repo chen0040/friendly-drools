@@ -1,0 +1,19 @@
+package tutorials;
+
+import com.github.chen0040.drools.tutorials.Item;
+import com.github.chen0040.drools.tutorials.Item.Category;
+
+rule "Classify Item - Low Range"
+    when
+        $i: Item(cost < 200)
+    then
+        $i.setCategory(Category.LOW_RANGE);
+end
+
+rule "Classify Item - High Range"
+    when
+        $i: Item(cost >= 200)
+    then
+        System.out.println("classify item as high range");
+        $i.setCategory(Category.HIGH_RANGE);
+end

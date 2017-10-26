@@ -1,0 +1,33 @@
+package tutorials;
+
+import com.github.chen0040.drools.tutorials.SuspiciousOperation;
+import com.github.chen0040.drools.tutorials.Order;
+import com.github.chen0040.drools.tutorials.Customer;
+import com.github.chen0040.drools.tutorials.OrderService;
+import com.github.chen0040.drools.tutorials.AuditService;
+import java.util.Set;
+
+global Double amountThreshold;
+global OrderService orderService;
+global Set results;
+global AuditService auditService;
+
+rule "Detect suspicious amount operations"
+    when
+        $c: Customer()
+        Number(doubleValue > amountThreshold) from accumulate (
+            Order(customer == $c, state != Order.OrderState.COMPLETED, $total: total) from orderService.getOrdersByCustomer($c),
+            sum($total)
+        )
+    then
+        insert(new SuspiciousOperation($c, SuspiciousOperation.Type.SUSPICIOUS_AMOUNT));
+end
+
+rule "Collect results"
+    when
+        $so: SuspiciousOperation()
+    then
+        results.add($so);
+        auditService.notifySuspiciousOperation($so);
+        channels["audit-channel"].send($so);
+end

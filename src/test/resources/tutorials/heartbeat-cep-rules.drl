@@ -1,0 +1,19 @@
+package tutorials;
+
+import com.github.chen0040.drools.tutorials.events.HeartBeat;
+
+declare window Beats
+    @doc("last 10 seconds heart beats")
+    HeartBeat() over window:time( 10s )
+    from entry-point "heart beat monitor"
+end
+
+rule "beats in the window"
+    when
+    $cnt: Number() from accumulate(
+        HeartBeat() from window Beats,
+        count(1)
+    )
+    then
+        System.out.println("count: " + $cnt);
+end

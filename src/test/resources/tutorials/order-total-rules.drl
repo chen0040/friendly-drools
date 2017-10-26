@@ -1,0 +1,30 @@
+package tutorials;
+dialect "mvel"
+
+import com.github.chen0040.drools.tutorials.Order;
+import com.github.chen0040.drools.tutorials.OrderLine;
+import com.github.chen0040.drools.tutorials.Item;
+import com.github.chen0040.drools.tutorials.OrderService;
+
+global OrderService orderService;
+
+declare IsOrderInserted
+    order: Order
+end
+
+rule "Calculate order total"
+    no-loop true
+    when
+        $o: Order($lines: orderLines) from orderService.findAll()
+        $total: Double() from accumulate (
+            OrderLine($lineTotal: total) from $lines,
+            sum($lineTotal)
+        )
+        not IsOrderInserted(order == $o)
+    then
+        System.out.println("total: " + $total);
+        insert($o);
+        insert(new IsOrderInserted($o));
+        modify($o) { setTotal($total) };
+        update($o.customer);
+end

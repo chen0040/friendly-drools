@@ -1,0 +1,68 @@
+package tutorials;
+
+import com.github.chen0040.drools.tutorials.events.TransactionEvent;
+import com.github.chen0040.drools.tutorials.SuspiciousCustomerEvent;
+
+declare AlarmTriggered
+    customerId: Long
+end
+
+rule "More than 10 transactions in an hour from one client"
+    when
+        $t1: TransactionEvent($cId : customerId)
+        Number(intValue >= 10) from accumulate(
+            $t2: TransactionEvent(this != $t1, this meets [1h] $t1),
+            count($t2)
+        )
+        not SuspiciousCustomerEvent(customerId == $cId, reason == "Many transactions")
+    then
+        System.out.println("Discover suspicious customer event (many transactions) about customer " + $cId);
+        insert(new SuspiciousCustomerEvent($cId, "Many transactions"));
+end
+
+rule "Transactions with total values greater than 1000 in 5 hours from one client"
+    when
+        $t1: TransactionEvent($cId : customerId, $t1Value : totalAmount)
+        $totalValue: Number(doubleValue >= 1000 - $t1Value) from accumulate(
+            $t2: TransactionEvent(this != $t1, $a: totalAmount, this meets [5h] $t1),
+            sum($a)
+        )
+        not SuspiciousCustomerEvent(customerId == $cId, reason == "High value in transactions")
+    then
+        System.out.println("Discover suspicious customer event (high value: " + ($totalValue.doubleValue() + $t1Value) + ") about customer " + $cId);
+        insert(new SuspiciousCustomerEvent($cId, "High value in transactions"));
+end
+
+rule "Transaction with value greater than 1000 from one client"
+    when
+        TransactionEvent($cId: customerId, $a: totalAmount)
+        not SuspiciousCustomerEvent(customerId == $cId, reason == "High value in a single transaction")
+    then
+        System.out.println("Discover suspicious customer event (high single transaction value: " + $a + ") about customer " + $cId);
+        insert(new SuspiciousCustomerEvent($cId, "High value in a single transaction"));
+end
+
+
+rule "More than 3 suspicious cases: warn the owner"
+    when
+        SuspiciousCustomerEvent($cId : customerId)
+        not AlarmTriggered(customerId == $cId)
+        Number(intValue >= 3) from accumulate(
+            $s: SuspiciousCustomerEvent(customerId == $cId),
+            count($s)
+        )
+    then
+        System.out.println("WARNING: Suspicious fraud case. Client " + $cId);
+        insert(new AlarmTriggered($cId));
+end
+
+rule "Obtain the last 5 hours of operations"
+    when
+        $n: Number() from accumulate(
+            TransactionEvent($a: totalAmount)
+            over window:time(5h), sum($a)
+        )
+    then
+        System.out.println("total = " + $n);
+end
+

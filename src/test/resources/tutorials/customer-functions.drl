@@ -1,0 +1,14 @@
+package tutorials;
+
+import function com.github.chen0040.drools.tutorials.CustomerUtils.formatCustomer;
+import com.github.chen0040.drools.tutorials.Customer;
+import java.util.List;
+
+global List globalList;
+
+rule "Prepare customers list"
+    when
+        $c: Customer()
+    then
+        globalList.add(formatCustomer($c));
+end

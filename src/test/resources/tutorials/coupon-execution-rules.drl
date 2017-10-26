@@ -1,0 +1,24 @@
+package tutorials;
+
+import com.github.chen0040.drools.tutorials.Coupon;
+import com.github.chen0040.drools.tutorials.Order;
+import com.github.chen0040.drools.tutorials.IsCouponExecuted;
+import java.util.Date;
+
+rule "Expire coupons"
+    when
+        $now: Date()
+        $cp: Coupon( validUntil before $now )
+    then
+        delete($cp)
+end
+
+rule "Execution coupon"
+    when
+        $o: Order()
+        $cp: Coupon(order==$o)
+        not IsCouponExecuted(coupon == $cp)
+    then
+        insert(new IsCouponExecuted($cp));
+        System.out.println("We have a coupon for this order! ");
+end

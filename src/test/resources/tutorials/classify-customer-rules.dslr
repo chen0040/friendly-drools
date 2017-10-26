@@ -1,0 +1,11 @@
+define Customer
+
+rule "Categorize Customers between 22 and 30"
+avoid looping
+when
+    There is a Customer
+        - with age between 22 and 30
+        - without a Category set
+then
+    Set Customer Category to BRONZE
+end

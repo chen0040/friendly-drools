@@ -1,0 +1,19 @@
+package tutorials;
+dialect "mvel"
+
+import com.github.chen0040.drools.tutorials.Order;
+import com.github.chen0040.drools.tutorials.Item;
+import com.github.chen0040.drools.tutorials.OrderLine;
+import com.github.chen0040.drools.tutorials.Discount;
+
+rule "High range order - 10% discount"
+    when
+        $o: Order($lines: orderLines.size >= 2, discount == null)
+        forall(OrderLine( this memberOf $lines, $item: item)
+            Item( this == $item, category == Item.Category.HIGH_RANGE)
+        )
+    then
+        System.out.println("give discount to order " + $o);
+        modify($o) { setDiscount(new Discount(10.0)) };
+end
+

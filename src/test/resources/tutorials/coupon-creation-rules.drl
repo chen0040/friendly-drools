@@ -1,0 +1,14 @@
+package tutorials;
+
+import com.github.chen0040.drools.tutorials.Customer;
+import com.github.chen0040.drools.tutorials.Order;
+import com.github.chen0040.drools.tutorials.Coupon;
+
+rule "Create coupons for silver customers"
+    when
+        $o: Order($customer: customer)@Watch(!*)
+        $c: Customer( this == $customer, category == Customer.Category.SILVER)
+    then
+        System.out.println("Create coupon for " + $o + ":" + $c);
+        insert(new Coupon($c, $o, Coupon.CouponType.POINTS));
+end

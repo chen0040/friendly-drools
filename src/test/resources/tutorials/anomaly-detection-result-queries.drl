@@ -1,0 +1,11 @@
+package tutorials;
+
+import com.github.chen0040.drools.tutorials.SuspiciousOperation;
+
+query "Get all suspicious operations"
+    $so: SuspiciousOperation()
+end
+
+query "Get customer suspicious operations" (Long $customerId)
+    $so: SuspiciousOperation(customer.customerId == $customerId)
+end
