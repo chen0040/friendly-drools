@@ -6,6 +6,8 @@ Drools engine friendly wrapper
 
 * User can load an external drools file into the rule engine to run
 * User can load an external text string as drool rules into the rule engine to run
+* User can load external domain specific language (DSL) files or text string
+* user can load external decision table specified in external excel files
 
 # Install
 
