@@ -9,6 +9,16 @@ Drools engine friendly wrapper
 
 # Install
 
+Add the following dependency to your POM file:
+
+```xml
+<dependency>
+    <groupId>com.github.chen0040</groupId>
+    <artifactId>friendly-drools</artifactId>
+    <version>1.0.1</version>
+</dependency>
+```
+
 # Usage
 
 The sample codes can be found in the src/test/java folder. 
