@@ -65,18 +65,70 @@ rule "Prepare customers list"
 end
 ```
 
-## Load External Drools File
+## Load Drools File from resources folder
 
-The following codes loads the anomaly detection rules for customer orders from external files:
+The following codes loads the anomaly detection rules for customer orders from drools files in the src/resources/tutorials folder:
 
 ```java
 StatefulRuleEngine ruleRunner = new StatefulKieRuleEngine();
 
 ruleRunner.addClassPathRuleFile("tutorials", "tutorials/classify-item-rules.drl");
-ruleRunner.addClassPathRuleFile("tutorials/classify-customer-rules.drl", "tutorials/classify-customer-rules.drl");
+ruleRunner.addClassPathRuleFile("tutorials", "tutorials/classify-customer-rules.drl");
 ruleRunner.addClassPathRuleFile("tutorials", "tutorials/coupon-creation-rules.drl");
-ruleRunner.addClassPathRuleFile("tutorials/coupon-execution-rules.drl", "tutorials/coupon-execution-rules.drl");
+ruleRunner.addClassPathRuleFile("tutorials", "tutorials/coupon-execution-rules.drl");
 ruleRunner.addClassPathRuleFile("tutorials", "tutorials/order-discount-rules.drl");
+
+ruleRunner.buildKnowledgeSession();
+
+Order o = ModelFactory.getOrderWithFiveHighRangeItems();
+
+ruleRunner.insert(o.getCustomer());
+
+for(int i=0; i < o.getOrderLines().size(); ++i) {
+ ruleRunner.insert(o.getOrderLines().get(i));
+ ruleRunner.insert(o.getOrderLines().get(i).getItem());
+}
+
+ruleRunner.insert(o);
+
+
+int fired = ruleRunner.fireAllRules();
+
+
+// We have 5 Items that are categorized -> 5 rules were fired
+// We have 1 Customer that needs to be categorized -> 1 rule fired
+// We have just one order with all HIGH RAnge items -> 1 rule fired
+// One Coupon is created for the SILVER Customer -> 1 rule fired
+// One Coupon is executed after its creation -> 1 rule fired
+logger.info("rules fired: {}", fired);
+assertThat(fired).isEqualTo(9);
+assertThat(o.getCustomer().getCategory()).isEqualTo(Customer.Category.SILVER);
+assertThat(o.getDiscount()).isNotNull();
+
+for(int i=0; i < o.getOrderLines().size(); ++i) {
+ assertThat(o.getOrderLines().get(i).getItem().getCategory()).isEqualTo(Item.Category.HIGH_RANGE);
+}
+
+List<Coupon> coupons = ruleRunner.getFacts(Coupon.class);
+
+logger.info("orders: {}", ruleRunner.getFacts(Order.class).size());
+logger.info("customers: {}", ruleRunner.getFacts(Customer.class).size());
+
+assertThat(coupons.size()).isEqualTo(1);
+```
+
+## Load Drools File from file disk
+
+The following codes loads the anomaly detection rules for customer orders which are stored in the folder /tmp/tutorials:
+
+```java
+StatefulRuleEngine ruleRunner = new StatefulKieRuleEngine();
+
+ruleRunner.addClassPathRuleFile("tutorials/classify-item-rules.drl", "/tmp/tutorials/classify-item-rules.drl");
+ruleRunner.addClassPathRuleFile("tutorials/classify-customer-rules.drl", "/tmp/tutorials/classify-customer-rules.drl");
+ruleRunner.addClassPathRuleFile("tutorials/coupon-creation-rules.drl", "/tmp/tutorials/coupon-creation-rules.drl");
+ruleRunner.addClassPathRuleFile("tutorials/coupon-execution-rules.drl", "/tmp/tutorials/coupon-execution-rules.drl");
+ruleRunner.addClassPathRuleFile("tutorials/order-discount-rules.drl", "/tmp/tutorials/order-discount-rules.drl");
 
 ruleRunner.buildKnowledgeSession();
 
@@ -343,4 +395,116 @@ Where BiggestOrderFunction is defined in the java code instead:
  
     }
  }
+```
+
+## Event Listeners
+
+The sample code below show how to use event listener:
+
+```java
+StatefulRuleEngine ruleRunner = new StatefulKieRuleEngine();
+ruleRunner.addRules("tutorials/order-total-rules.drl", FileUtils.readToEnd("tutorials/order-total-rules.drl"));
+ruleRunner.addRules("tutorials/anomaly-detection-rules.drl", FileUtils.readToEnd("tutorials/anomaly-detection-rules.drl"));
+ruleRunner.addRules("tutorials/anomaly-detection-result-queries.drl", FileUtils.readToEnd("tutorials/anomaly-detection-result-queries.drl"));
+
+
+ruleRunner.buildKnowledgeSession();
+
+
+
+Customer customer1 = new Customer();
+customer1.setCustomerId(1L);
+
+Order customer1Order = ModelFactory.getPendingOrderWithTotalValueGreaterThan10000(customer1);
+
+Customer customer2 = new Customer();
+customer2.setCustomerId(2L);
+
+Order customer2Order = ModelFactory.getPendingOrderWithTotalValueLessThan10000(customer1);
+
+
+OrderService orderService = new OrderServiceImpl();
+orderService.save(customer1Order);
+orderService.save(customer2Order);
+
+AuditService auditService = new AuditServiceImpl();
+
+ruleRunner.insert(customer1);
+ruleRunner.insert(customer2);
+
+ruleRunner.setGlobal("orderService", orderService);
+ruleRunner.setGlobal("amountThreshold", 10000.00);
+ruleRunner.setGlobal("results", new HashSet<>());
+ruleRunner.setGlobal("auditService", auditService);
+
+ruleRunner.registerChannel("audit-channel", o -> logger.info("receive from channel: {}", o));
+
+ruleRunner.getSession().addEventListener(new RuleRuntimeEventListener() {
+ @Override public void objectInserted(ObjectInsertedEvent objectInsertedEvent) {
+
+ }
+
+
+ @Override public void objectUpdated(ObjectUpdatedEvent objectUpdatedEvent) {
+
+ }
+
+
+ @Override public void objectDeleted(ObjectDeletedEvent objectDeletedEvent) {
+
+ }
+});
+
+ruleRunner.getSession().addEventListener(new AgendaEventListener() {
+ @Override public void matchCreated(MatchCreatedEvent matchCreatedEvent) {
+
+ }
+
+
+ @Override public void matchCancelled(MatchCancelledEvent matchCancelledEvent) {
+
+ }
+
+
+ @Override public void beforeMatchFired(BeforeMatchFiredEvent beforeMatchFiredEvent) {
+    logger.info("before match fired: {}", beforeMatchFiredEvent.getMatch().getRule().getName());
+ }
+
+
+ @Override public void afterMatchFired(AfterMatchFiredEvent afterMatchFiredEvent) {
+    logger.info("after match fired: {}", afterMatchFiredEvent.getMatch().getRule().getName());
+ }
+
+
+ @Override public void agendaGroupPopped(AgendaGroupPoppedEvent agendaGroupPoppedEvent) {
+
+ }
+
+
+ @Override public void agendaGroupPushed(AgendaGroupPushedEvent agendaGroupPushedEvent) {
+
+ }
+
+
+ @Override public void beforeRuleFlowGroupActivated(RuleFlowGroupActivatedEvent ruleFlowGroupActivatedEvent) {
+
+ }
+
+
+ @Override public void afterRuleFlowGroupActivated(RuleFlowGroupActivatedEvent ruleFlowGroupActivatedEvent) {
+
+ }
+
+
+ @Override public void beforeRuleFlowGroupDeactivated(RuleFlowGroupDeactivatedEvent ruleFlowGroupDeactivatedEvent) {
+
+ }
+
+
+ @Override public void afterRuleFlowGroupDeactivated(RuleFlowGroupDeactivatedEvent ruleFlowGroupDeactivatedEvent) {
+
+ }
+});
+
+ruleRunner.fireAllRules();
 ```
